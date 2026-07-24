@@ -188,7 +188,7 @@
 
         socket.on('roomJoined', (roomCode) => {
             currentConnectedRoom = roomCode;
-            document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중 [방: ${roomCode}]`;
+            document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중`;
         });
 
         // 서버로부터 랭킹 업데이트를 수신하여 좌측 패널에 그리기
