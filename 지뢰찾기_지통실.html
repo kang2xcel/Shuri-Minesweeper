@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>💜슈리!💜의 지뢰찾기 대회 지통실</title>
+    <style>
+        :root { --bg-main: #0B0514; --bg-sidebar: #1A0B2E; --point-color: #8A2BE2; }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; background-color: var(--bg-main); color: #E0E0E0; font-family: 'Malgun Gothic', sans-serif; overflow: hidden; }
+
+        .top-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background-color: var(--bg-sidebar); border-bottom: 2px solid var(--point-color); height: 70px; box-sizing: border-box; flex-shrink: 0; }
+        .header-left { flex: 1; display: flex; justify-content: flex-start; }
+        .settings-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #fff; transition: transform 0.2s; padding: 0; }
+        .settings-btn:hover { transform: rotate(90deg); text-shadow: 0 0 10px #FFD700; }
+        
+        .header-center { flex: 2; text-align: center; }
+        .header-center h1 { margin: 0; font-size: 22px; color: #fff; text-shadow: 0 0 10px var(--point-color); }
+        .header-right { flex: 1.5; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+        
+        .timer-panel { background-color: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 6px; border: 1px dashed #FF0055; display: flex; align-items: center; gap: 10px; }
+        .timer-display { font-size: 18px; font-weight: bold; color: #FFD700; text-shadow: 0 0 8px rgba(255, 215, 0, 0.6); font-variant-numeric: tabular-nums; }
+        .timer-controls { display: flex; gap: 4px; }
+        .timer-controls button { padding: 4px 8px; background: #3C096C; color: white; border: 1px solid #B388FF; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .timer-controls button:hover { background: #8A2BE2; }
+        
+        #btn-load-streams { background: #FF0055; color: white; border: 1px solid #FF99AA; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; animation: pulse 1.5s infinite; flex-shrink: 0; }
+        #btn-load-streams:hover { background: #D40047; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.03); } 100% { transform: scale(1); } }
+
+        /* 🔥 메인 레이아웃: 좌측 랭킹 패널 + 우측 영상 패널 */
+        .content-body { flex: 1; display: flex; overflow: hidden; }
+        
+        .left-ranking-panel { width: 280px; background-color: var(--bg-sidebar); border-right: 2px solid var(--point-color); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+        .left-ranking-panel h2 { margin: 0 0 5px 0; font-size: 16px; color: #FFD700; text-align: center; text-shadow: 0 0 5px var(--point-color); border-bottom: 1px solid #3C096C; padding-bottom: 8px; }
+        .room-badge { font-size: 12px; color: #B388FF; text-align: center; margin-bottom: 5px; }
+        
+        .ranking-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+        .ranking-list::-webkit-scrollbar { width: 5px; }
+        .ranking-list::-webkit-scrollbar-thumb { background: var(--point-color); border-radius: 3px; }
+        
+        .rank-card { background: linear-gradient(90deg, #2a0a4a, #3C096C); border: 1px solid #5A189A; padding: 8px 10px; border-radius: 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .rank-card.is-cleared { border-color: #00E676; background: linear-gradient(90deg, #004D40, #00695C); }
+        .rank-name { font-weight: bold; color: #fff; }
+        .rank-time { font-weight: bold; color: #FFD700; }
+        .rank-status { font-size: 11px; color: #ccc; }
+
+        .video-area { flex: 1; display: flex; padding: 12px; box-sizing: border-box; overflow: hidden; }
+        .video-container { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; height: 100%; align-content: space-between; justify-content: space-between; }
+        
+        .view-box { position: relative; background-color: #111; border-radius: 6px; overflow: hidden; transition: all 0.2s ease; border: 1px solid #444; box-sizing: border-box; }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+        .view-box.is-main { order: -1; width: 100%; height: 62%; border: 2px solid var(--point-color); box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); }
+        .view-box.is-sub { order: 1; width: calc((100% - 16px) / 3); height: calc((100% - 62% - 16px) / 2); }
+
+        .team-label { position: absolute; top: 4px; left: 4px; background: rgba(0, 0, 0, 0.75); color: #FFD700; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; z-index: 10; pointer-events: none; border: 1px solid var(--point-color); }
+        .view-box.is-main .team-label { font-size: 16px; padding: 6px 12px; top: 10px; left: 10px; }
+
+        .swap-area { position: absolute; top: 4px; right: 4px; opacity: 0; transition: opacity 0.2s; z-index: 20; }
+        .view-box.is-sub:hover .swap-area { opacity: 1; }
+        .view-box.is-main .swap-area { display: none !important; }
+        .swap-btn { padding: 4px 8px; background: #3C096C; color: white; border: 1px solid #B388FF; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .swap-btn:hover { background: #8A2BE2; }
+
+        /* 설정 모달 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: var(--bg-sidebar); border: 2px solid var(--point-color); border-radius: 8px; padding: 25px; width: 550px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 0 25px rgba(138, 43, 226, 0.6); max-height: 85vh; overflow-y: auto;}
+        .modal-content h2 { margin: 0; color: #FFD700; font-size: 18px; text-align: center; border-bottom: 1px solid #555; padding-bottom: 15px; }
+        .settings-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .settings-row label { color: #B388FF; font-size: 13px; width: 60px; font-weight: bold; text-align: right; flex-shrink: 0;}
+        .settings-row input { padding: 8px; background: #111; color: #fff; border: 1px solid #3C096C; border-radius: 4px; font-size: 13px; font-family: inherit; }
+        .settings-row input:focus { border-color: var(--point-color); outline: none; }
+        .input-name { flex: 2; }
+        .input-stream { flex: 1; }
+
+        .modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
+        .modal-actions button { flex: 1; padding: 10px; font-weight: bold; border-radius: 4px; cursor: pointer; border: none; font-size: 14px; }
+        .btn-save { background: #FF0055; color: white; border: 1px solid #FF99AA; }
+        .btn-save:hover { background: #D40047; }
+        .btn-cancel { background: #555; color: white; }
+        .btn-cancel:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+    <div class="top-header">
+        <div class="header-left">
+            <button class="settings-btn" onclick="openSettings()" title="팀 및 방 연동 설정">⚙️</button>
+        </div>
+        <div class="header-center">
+            <h1>💜슈리!💜의 지뢰찾기 대회 지통실</h1>
+        </div>
+        <div class="header-right">
+            <div class="timer-panel">
+                <div class="timer-display" id="display-timer">⏱️ 00:00:00</div>
+                <div class="timer-controls">
+                    <button onclick="startTimer()" title="시작">▶️</button>
+                    <button onclick="stopTimer()" title="일시정지">⏸️</button>
+                    <button onclick="resetTimer()" title="리셋">🔄</button>
+                </div>
+            </div>
+            <button id="btn-load-streams" onclick="loadAllStreams()">📺 방송 전체 켜기</button>
+        </div>
+    </div>
+
+    <!-- 🔥 메인 콘텐츠 (좌측: 랭킹 / 우측: 중계 7팀) -->
+    <div class="content-body">
+        <div class="left-ranking-panel">
+            <h2>🏆 실시간 클리어 랭킹</h2>
+            <div class="room-badge" id="room-badge-text">연동된 방 없음 (⚙️ 설정에서 입력)</div>
+            <div class="ranking-list" id="command-ranking-list">
+                <div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">대회 방에 연결되면<br>실시간 순위가 나타납니다.</div>
+            </div>
+        </div>
+
+        <div class="video-area">
+            <div class="video-container">
+                <div class="view-box is-main" id="box-1">
+                    <div class="team-label">[1팀] 콩포 (콩나&치포)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/congna/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-1')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-2">
+                    <div class="team-label">[2팀] 뚜레뮤르 (김레뮤&김뚜야)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/jing5869/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-2')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-3">
+                    <div class="team-label">[3팀] 1등하겠시오 (성하늘&시오∋)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/hongseol/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-3')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-4">
+                    <div class="team-label">[4팀] 쌈닭 (큐피&냔냐)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/jjuppi1022/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-4')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-5">
+                    <div class="team-label">[5팀] 후알유 (아라냥&후와)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/aranyaang/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-5')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-6">
+                    <div class="team-label">[6팀] 남나드리프트 (유남라&김나오!)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/spkimnao/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-6')">🔄 메인으로</button></div>
+                </div>
+                <div class="view-box is-sub" id="box-7">
+                    <div class="team-label">[7팀] 무면허 라이더 (망몽!&도르)</div>
+                    <iframe data-src="https://play.sooplive.co.kr/kuang2/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-7')">🔄 메인으로</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 팀 설정 및 방 연동 팝업 -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>⚙️ 지통실 및 대회 방 연동 설정</h2>
+            
+            <div style="background:#2a0a4a; padding:10px; border-radius:6px; border:1px solid #FF0055; margin-bottom:10px;">
+                <div class="settings-row" style="margin:0;">
+                    <label style="color:#FFD700; width:80px;">방 코드 :</label>
+                    <input type="text" id="setting-room-code" placeholder="지뢰찾기 방 코드 4자리 입력" style="flex:1; text-align:center; font-weight:bold; color:#FFD700;">
+                </div>
+            </div>
+
+            <div id="settings-team-list"></div>
+            
+            <div class="modal-actions">
+                <button class="btn-save" onclick="saveSettings()">💾 저장 및 연동 적용</button>
+                <button class="btn-cancel" onclick="closeSettings()">❌ 취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 소켓.io 클라이언트 (서버 위치가 다를 경우 주소 수정 필요) -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        /* 🔥 소켓 연결 및 실시간 랭킹 수신 로직 */
+        // 지통실 파일이 서버와 다른 도메인/포트에서 열릴 경우: io("http://localhost:3000") 으로 변경하세요.
+        const socket = io(); 
+        let currentConnectedRoom = null;
+
+        socket.on('roomError', (msg) => {
+            alert("지통실 연동 오류: " + msg);
+            document.getElementById('room-badge-text').innerText = "방 연결 실패!";
+        });
+
+        socket.on('roomJoined', (roomCode) => {
+            currentConnectedRoom = roomCode;
+            document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중 [방: ${roomCode}]`;
+        });
+
+        // 서버로부터 랭킹 업데이트를 수신하여 좌측 패널에 그리기
+        socket.on('updateRanking', (players) => {
+            const listEl = document.getElementById('command-ranking-list');
+            listEl.innerHTML = '';
+
+            // 지통실 계정(관전) 자체는 랭킹 화면에서 숨김 처리
+            const realPlayers = players.filter(p => p.name !== "📺지통실(관전)");
+
+            if (realPlayers.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">방에 대기 중인<br>선수가 없습니다.</div>';
+                return;
+            }
+
+            realPlayers.forEach((p, idx) => {
+                let rankStr = idx === 0 ? "🥇 1위" : idx === 1 ? "🥈 2위" : idx === 2 ? "🥉 3위" : `${idx + 1}위`;
+                let isCleared = p.status === 'cleared';
+                
+                let timeOrStatus = "";
+                if (isCleared) {
+                    timeOrStatus = `<span class="rank-time">${p.clearTime}초</span>`;
+                } else if (p.status === 'playing') {
+                    timeOrStatus = `<span class="rank-status" style="color:#FF9800;">진행 중</span>`;
+                } else if (p.status === 'eliminated') {
+                    timeOrStatus = `<span class="rank-status" style="color:#FF5252;">폭발💀</span>`;
+                } else {
+                    timeOrStatus = `<span class="rank-status">대기</span>`;
+                }
+
+                let cardHTML = `
+                    <div class="rank-card ${isCleared ? 'is-cleared' : ''}">
+                        <div>
+                            <span style="color:#B388FF; font-size:11px; margin-right:4px;">${rankStr}</span>
+                            <span class="rank-name">${p.name}</span>
+                        </div>
+                        <div>${timeOrStatus}</div>
+                    </div>
+                `;
+                listEl.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        });
+
+        /* --- 기존 7팀 중계 및 설정 로직 --- */
+        let teams = [
+            { id: 1, name: "콩포 (콩나&치포)", streamId: "congna" }, 
+            { id: 2, name: "뚜레뮤르 (김레뮤&김뚜야)", streamId: "jing5869" },
+            { id: 3, name: "1등하겠시오 (성하늘&시오∋)", streamId: "hongseol" }, 
+            { id: 4, name: "쌈닭 (큐피&냔냐)", streamId: "jjuppi1022" },
+            { id: 5, name: "후알유 (아라냥&후와)", streamId: "aranyaang" }, 
+            { id: 6, name: "남나드리프트 (유남라&김나오!)", streamId: "spkimnao" },
+            { id: 7, name: "무면허 라이더 (망몽!&도르)", streamId: "kuang2" }
+        ];
+
+        function loadAllStreams() {
+            let iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                if(iframe.getAttribute('data-src')) {
+                    iframe.src = iframe.getAttribute('data-src') + "?mute=1&autoplay=true";
+                }
+            });
+            document.getElementById('btn-load-streams').style.display = 'none';
+        }
+
+        function makeMain(targetBoxId) {
+            let currentMain = document.querySelector('.view-box.is-main');
+            if (currentMain) {
+                currentMain.classList.remove('is-main');
+                currentMain.classList.add('is-sub');
+            }
+            let newMain = document.getElementById(targetBoxId);
+            newMain.classList.remove('is-sub');
+            newMain.classList.add('is-main');
+        }
+
+        function openSettings() {
+            document.getElementById('setting-room-code').value = currentConnectedRoom || '';
+            let listHTML = '';
+            teams.forEach((team) => {
+                listHTML += `
+                    <div class="settings-row">
+                        <label>${team.id}팀</label>
+                        <input type="text" class="input-name" id="setting-name-${team.id}" value="${team.name}" placeholder="팀 이름 및 팀원">
+                        <input type="text" class="input-stream" id="setting-stream-${team.id}" value="${team.streamId}" placeholder="방송 ID">
+                    </div>
+                `;
+            });
+            document.getElementById('settings-team-list').innerHTML = listHTML;
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            // 1. 방 연동 처리
+            const roomCodeInput = document.getElementById('setting-room-code').value.trim();
+            if (roomCodeInput && roomCodeInput !== currentConnectedRoom) {
+                socket.emit('joinRoom', { roomCode: roomCodeInput, nickname: "📺지통실(관전)" });
+            }
+
+            // 2. 7팀 정보 업데이트
+            teams.forEach(team => {
+                let newName = document.getElementById(`setting-name-${team.id}`).value;
+                let newStreamId = document.getElementById(`setting-stream-${team.id}`).value;
+                team.name = newName; 
+                team.streamId = newStreamId;
+                
+                let labelDiv = document.querySelector(`#box-${team.id} .team-label`);
+                if(labelDiv) labelDiv.innerText = `[${team.id}팀] ${newName}`;
+
+                let iframe = document.querySelector(`#box-${team.id} iframe`);
+                if(iframe) {
+                    let newBaseUrl = `https://play.sooplive.co.kr/${newStreamId}/embed`;
+                    iframe.setAttribute('data-src', newBaseUrl);
+                    if(iframe.src && iframe.src !== 'about:blank') {
+                        iframe.src = newBaseUrl + "?mute=1&autoplay=true";
+                    }
+                }
+            });
+            closeSettings();
+        }
+
+        /* --- 통합 타이머 로직 --- */
+        let timerInterval, elapsedSeconds = 0, isRunning = false;
+        function updateTimerDisplay() {
+            let h = String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0');
+            let m = String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0');
+            let s = String(elapsedSeconds % 60).padStart(2, '0');
+            document.getElementById('display-timer').innerText = `⏱️ ${h}:${m}:${s}`;
+        }
+        function startTimer() { if (!isRunning) { isRunning = true; timerInterval = setInterval(() => { elapsedSeconds++; updateTimerDisplay(); }, 1000); } }
+        function stopTimer() { isRunning = false; clearInterval(timerInterval); }
+        function resetTimer() { stopTimer(); elapsedSeconds = 0; updateTimerDisplay(); }
+    </script>
+</body>
+</html>

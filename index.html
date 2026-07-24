@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>지뢰찾기 멀티플레이 (중급)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+               background-color: #e0f7fa; color: #01579b; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .main-container { display: flex; gap: 30px; align-items: flex-start; justify-content: center; }
+        .left-panel { display: flex; flex-direction: column; gap: 20px; width: 300px; }
+        .panel-box { background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 2px solid #81d4fa; }
+        .panel-box h3 { margin: 0 0 15px 0; color: #0288d1; text-align: center; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 5px; }
+        .input-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #b3e5fc; border-radius: 6px; font-size: 14px; outline: none; }
+        .input-group input:focus { border-color: #03a9f4; box-shadow: 0 0 5px rgba(3, 169, 244, 0.3); }
+        
+        button { width: 100%; background-color: #03a9f4; color: white; cursor: pointer; font-weight: bold; padding: 12px; font-size: 15px; border-radius: 8px; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 10px; transition: background 0.2s; }
+        button:hover { background-color: #0288d1; }
+        button.secondary { background-color: #4fc3f7; }
+        button.secondary:hover { background-color: #29b6f6; }
+        button.action { background-color: #ff9800; font-size: 16px; margin-top: 10px;}
+        button.action:hover { background-color: #f57c00; }
+        
+        .room-info { text-align: center; font-weight: bold; color: #0288d1; margin-bottom: 10px; display: none; }
+        .ranking-list { max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        .rank-item { display: flex; flex-direction: column; margin: 8px 0; font-size: 15px; padding: 8px; background: #f1f8e9; border-radius: 5px; border: 1px solid #c5e1a5; }
+        .rank-info { display: flex; justify-content: space-between; align-items: center; }
+        
+        .right-panel { position: relative; display: flex; flex-direction: column; align-items: center; }
+        .top-info { display: flex; justify-content: space-between; width: 100%; margin-bottom: 15px; font-size: 24px; font-weight: bold; background: #ffffff; padding: 10px 20px; border-radius: 12px; box-sizing: border-box; border: 2px solid #81d4fa; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .board { display: grid; gap: 1px; background-color: #0288d1; border: 4px solid #0277bd; padding: 3px; border-radius: 5px; user-select: none; margin-bottom:20px; touch-action: pan-x pan-y; }
+        .cell { width: 25px; height: 25px; background-color: #4fc3f7; border: 2px outset #81d4fa; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; cursor: pointer; }
+        .cell:active { border: 1px solid #0288d1; }
+        .cell.revealed { background-color: #e1f5fe; border: 1px solid #b3e5fc; }
+        .cell.mine { background-color: #ff5252; border-color: #ff5252; }
+        .cell.highlight { background-color: #81d4fa; border: 2px inset #4fc3f7; filter: brightness(1.2); }
+        
+        .c1 { color: #1976d2; } .c2 { color: #388e3c; } .c3 { color: #d32f2f; } .c4 { color: #7b1fa2; } .c5 { color: #f57c00; } .c6 { color: #0097a7; } .c7 { color: #212121; } .c8 { color: #616161; }
+
+        @media screen and (max-width: 1024px) {
+            body { padding: 10px; }
+            .main-container { flex-direction: column; align-items: center; width: 100%; gap: 20px; }
+            .left-panel { width: 100%; max-width: 400px; }
+            .right-panel { width: 100vw; overflow-x: auto; display: block; text-align: center; padding-bottom: 20px; }
+            .top-info { max-width: 400px; margin: 0 auto 15px auto; }
+            .board { display: inline-grid; margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="panel-box">
+                <h3>🎮 멀티플레이 🎮</h3>
+                
+                <div id="lobbyUI">
+                    <div class="input-group">
+                        <label>닉네임</label>
+                        <input type="text" id="nicknameInput" placeholder="예: 유저1">
+                    </div>
+                    <button onclick="createRoom()">새로운 방 만들기</button>
+                    <hr style="border: 0; border-top: 1px solid #e1f5fe; margin: 15px 0;">
+                    <div class="input-group">
+                        <label>방 코드</label>
+                        <input type="text" id="roomCodeInput" placeholder="입장할 방 코드 4자리">
+                    </div>
+                    <button class="secondary" onclick="joinRoom()">방 입장하기</button>
+                </div>
+
+                <div id="inRoomUI" style="display: none;">
+                    <div id="roomStatus" class="room-info"></div>
+                    <div class="input-group" style="margin-top: 15px;">
+                        <input type="text" id="newNicknameInput" placeholder="변경할 닉네임">
+                        <button class="secondary" style="margin-top:5px;" onclick="changeNickname()">닉네임 변경</button>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px solid #e1f5fe; margin: 15px 0;">
+                    
+                    <!-- 방장 전용 기능 삭제, 모든 플레이어 개별 게임 시작 가능 -->
+                    <button class="action" id="startBtn" onclick="startIndividualGame()"> 💥 게임 시작 (중급) 💥 </button>
+                </div>
+            </div>
+
+            <div class="panel-box">
+                <h3>🏆 실시간 클리어 랭킹</h3>
+                <div class="ranking-list" id="rankingList"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="top-info">
+                <div>🚩 <span id="mineCount">40</span></div>
+                <div>⏱️ <span id="timer">0</span></div>
+            </div>
+            <div id="board" class="board"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentRoomCode = null;
+        let players = [];
+        let lastFlagTime = 0;
+
+        let globalLastTapTime = 0;
+        let globalLastTapCell = null;
+
+        // ⭐️ 중급 모드 고정 ⭐️
+        const ROWS = 16; const COLS = 16; const MINES = 40;
+        
+        let board = [];
+        let revealedCount = 0; let flagsCount = 0;
+        let isGameOver = true;
+        let isFirstClick = true; // ⭐️ 첫 클릭 무적 판단용
+        let timerInterval; let timeElapsed = 0;
+        let chordingTarget = null;
+
+        /* ---------------- 네트워킹 & 방 관리 ---------------- */
+        socket.on('roomError', (msg) => { alert(msg); });
+        socket.on('roomCreated', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode); });
+        socket.on('roomJoined', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode); });
+
+        socket.on('updateRanking', (serverPlayers) => {
+            players = serverPlayers.map(p => ({ ...p, isMe: p.id === socket.id }));
+            renderRanking();
+        });
+
+        function switchToRoomUI(roomCode) {
+            document.getElementById('lobbyUI').style.display = 'none';
+            document.getElementById('inRoomUI').style.display = 'block';
+            document.getElementById('roomStatus').style.display = 'block';
+            document.getElementById('roomStatus').innerText = `[방 코드: ${roomCode}]\n입장 완료! 게임 시작을 눌러주세요.`;
+            initEmptyBoard();
+        }
+
+        function createRoom() {
+            const nickname = document.getElementById('nicknameInput').value || '플레이어';
+            socket.emit('createRoom', { nickname });
+        }
+
+        function joinRoom() {
+            const nickname = document.getElementById('nicknameInput').value || '플레이어';
+            const roomCode = document.getElementById('roomCodeInput').value;
+            if (!roomCode || roomCode.length < 4) return alert('유효한 코드를 입력해주세요!');
+            socket.emit('joinRoom', { roomCode, nickname });
+        }
+
+        function changeNickname() {
+            const newName = document.getElementById('newNicknameInput').value;
+            if (!newName) return alert('변경할 닉네임을 입력하세요!');
+            socket.emit('changeNickname', { roomCode: currentRoomCode, newNickname: newName });
+            document.getElementById('newNicknameInput').value = '';
+        }
+
+        /* ---------------- 개별 게임 시작 및 로직 ---------------- */
+        function initEmptyBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.style.gridTemplateColumns = `repeat(${COLS}, 25px)`;
+            boardEl.innerHTML = '';
+            for (let i = 0; i < ROWS * COLS; i++) {
+                const cellEl = document.createElement('div');
+                cellEl.classList.add('cell');
+                boardEl.appendChild(cellEl);
+            }
+        }
+
+        function startIndividualGame() {
+            board = []; revealedCount = 0; flagsCount = 0; timeElapsed = 0;
+            isGameOver = false; 
+            isFirstClick = true; // 게임 시작 시 첫 클릭 무적 상태로 초기화
+            chordingTarget = null;
+            clearInterval(timerInterval);
+            
+            document.getElementById('timer').innerText = timeElapsed;
+            document.getElementById('mineCount').innerText = MINES;
+            
+            for (let r = 0; r < ROWS; r++) {
+                let row = [];
+                for (let c = 0; c < COLS; c++) {
+                    row.push({ isMine: false, isRevealed: false, isFlagged: false, neighbor: 0 });
+                }
+                board.push(row);
+            }
+
+            // ⭐️ 주의: 첫 클릭 전까지 지뢰를 배치하지 않습니다.
+            renderBoard();
+            
+            // 서버에 내 상태를 'playing'으로 알림
+            socket.emit('updatePlayerStatus', { roomCode: currentRoomCode, status: 'playing', clearTime: null });
+        }
+
+        // ⭐️ 첫 클릭 시 클릭된 칸(excludeR, excludeC)을 제외하고 지뢰 배치
+        function placeMinesExcluding(excludeR, excludeC) {
+            let minesPlaced = 0;
+            while (minesPlaced < MINES) {
+                let r = Math.floor(Math.random() * ROWS);
+                let c = Math.floor(Math.random() * COLS);
+                
+                // 첫 번째 클릭한 위치에는 지뢰를 놓지 않음
+                if ((r === excludeR && c === excludeC) || board[r][c].isMine) continue;
+                
+                board[r][c].isMine = true;
+                minesPlaced++;
+            }
+            calculateNumbers();
+        }
+
+        function calculateNumbers() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c].isMine) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            let nr = r + dr, nc = c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].isMine) count++;
+                        }
+                    }
+                    board[r][c].neighbor = count;
+                }
+            }
+        }
+
+        function renderRanking() {
+            const rankingListEl = document.getElementById('rankingList');
+            rankingListEl.innerHTML = '';
+
+            players.forEach((p, index) => {
+                let rankText = index === 0 ? '🥇 1위' : index === 1 ? '🥈 2위' : index === 2 ? '🥉 3위' : `${index + 1}위`;
+                const nameStyle = p.isMe ? 'color: #0288d1; font-weight: bold;' : 'color: #333;';
+                
+                let statusText = '';
+                if (p.status === 'cleared') {
+                    statusText = `<span style="color:#1e88e5; font-weight:bold;">${p.clearTime}초 클리어🎉</span>`;
+                } else if (p.status === 'playing') {
+                    statusText = `<span style="color:#f57c00;">게임 진행 중...</span>`;
+                } else if (p.status === 'eliminated') {
+                    statusText = `<span style="color:#e53935;">[지뢰 폭발💀]</span>`;
+                } else {
+                    statusText = `<span style="color:#757575;">대기 중</span>`;
+                }
+
+                const itemHTML = `
+                <div class="rank-item">
+                    <div class="rank-info">
+                        <div>${rankText} : <span style="${nameStyle}">${p.name}</span></div>
+                        <div>${statusText}</div>
+                    </div>
+                </div>`;
+                rankingListEl.insertAdjacentHTML('beforeend', itemHTML);
+            });
+        }
+
+        /* ---------------- 보드 이벤트 및 게임 진행 ---------------- */
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            boardEl.addEventListener('contextmenu', e => e.preventDefault());
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cellEl = document.createElement('div');
+                    cellEl.classList.add('cell');
+                    
+                    cellEl.addEventListener('mousedown', function(e) {
+                        if (isGameOver || Date.now() - lastFlagTime < 100) return;
+                        if (e.buttons === 3 || e.button === 1) {
+                            if (board[r][c].isRevealed) { chordingTarget = { r, c }; highlightNeighbors(r, c); }
+                        } else if (e.button === 0 && !board[r][c].isFlagged && !board[r][c].isRevealed) {
+                            cellEl.style.border = "1px solid #0288d1";
+                        }
+                    });
+
+                    cellEl.addEventListener('mouseup', function(e) {
+                        if (isGameOver) return;
+                        if (chordingTarget) {
+                            if (Date.now() - lastFlagTime < 100) return;
+                            clearHighlights(); chordCell(chordingTarget.r, chordingTarget.c); chordingTarget = null;
+                        } else {
+                            if (e.button === 0) { 
+                                if (Date.now() - lastFlagTime < 100) return;
+                                cellEl.style.border = ""; revealCell(r, c); 
+                            } else if (e.button === 2) { toggleFlag(r, c); }
+                        }
+                    });
+
+                    cellEl.addEventListener('mouseleave', () => {
+                        cellEl.style.border = "";
+                        if (chordingTarget) { clearHighlights(); chordingTarget = null; }
+                    });
+
+                    // 모바일 터치 이벤트
+                    let touchStartX = 0, touchStartY = 0, isTouchMoved = false, isLongPress = false, touchTimer = null;
+
+                    cellEl.addEventListener('touchstart', function(e) {
+                        if (isGameOver) return;
+                        isLongPress = false; isTouchMoved = false;
+                        touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+                        touchTimer = setTimeout(() => {
+                            if (!isTouchMoved) {
+                                isLongPress = true; toggleFlag(r, c);
+                                if (navigator.vibrate) navigator.vibrate(50);
+                            }
+                        }, 400); 
+                    }, {passive: true});
+
+                    cellEl.addEventListener('touchmove', function(e) {
+                        if (Math.abs(e.touches[0].clientX - touchStartX) > 10 || Math.abs(e.touches[0].clientY - touchStartY) > 10) {
+                            isTouchMoved = true; if (touchTimer) clearTimeout(touchTimer);
+                        }
+                    }, {passive: true});
+
+                    cellEl.addEventListener('touchend', function(e) {
+                        if (isGameOver) return;
+                        if (touchTimer) clearTimeout(touchTimer);
+                        if (isLongPress || isTouchMoved) { if(isLongPress && e.cancelable) e.preventDefault(); return; }
+                        if (e.cancelable) e.preventDefault();
+                        
+                        const currentTime = Date.now();
+                        const tapLength = currentTime - globalLastTapTime;
+                        if (tapLength < 300 && tapLength > 0 && globalLastTapCell && globalLastTapCell.r === r && globalLastTapCell.c === c) {
+                            chordCell(r, c); globalLastTapTime = 0; globalLastTapCell = null;
+                        } else {
+                            globalLastTapTime = currentTime; globalLastTapCell = {r, c}; revealCell(r, c);
+                        }
+                    });
+
+                    cellEl.addEventListener('touchcancel', () => { if (touchTimer) clearTimeout(touchTimer); });
+                    boardEl.appendChild(cellEl);
+                    updateCellUI(r, c); 
+                }
+            }
+        }
+
+        function highlightNeighbors(r, c) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    let nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !board[nr][nc].isRevealed && !board[nr][nc].isFlagged) {
+                        document.getElementById('board').children[nr * COLS + nc].classList.add('highlight');
+                    }
+                }
+            }
+        }
+
+        function clearHighlights() { document.querySelectorAll('.cell.highlight').forEach(el => el.classList.remove('highlight')); }
+
+        function updateCellUI(r, c) {
+            const cellData = board[r][c];
+            const cellEl = document.getElementById('board').children[r * COLS + c];
+            if (!cellEl) return;
+            if (cellData.isRevealed) {
+                cellEl.classList.add('revealed');
+                if (cellData.isMine) {
+                    cellEl.classList.add('mine'); cellEl.innerText = '💣';
+                } else if (cellData.neighbor > 0) {
+                    cellEl.innerText = cellData.neighbor; cellEl.className = `cell revealed c${cellData.neighbor}`; 
+                }
+            } else if (cellData.isFlagged) {
+                cellEl.innerText = '🚩';
+            } else {
+                cellEl.innerText = ''; cellEl.className = 'cell';
+            }
+        }
+
+        function revealCell(r, c) {
+            if (isGameOver || board[r][c].isRevealed || board[r][c].isFlagged) return;
+            
+            // ⭐️ 첫 번째 클릭 시 지뢰 생성 및 타이머 작동 시작!
+            if (isFirstClick) {
+                isFirstClick = false;
+                placeMinesExcluding(r, c);
+                
+                timerInterval = setInterval(() => {
+                    if(!isGameOver) {
+                        timeElapsed++;
+                        document.getElementById('timer').innerText = timeElapsed;
+                    }
+                }, 1000);
+            }
+
+            board[r][c].isRevealed = true;
+            revealedCount++;
+            updateCellUI(r, c);
+
+            if (board[r][c].isMine) {
+                gameOver(false);
+                return;
+            }
+
+            if (board[r][c].neighbor === 0) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        let nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) revealCell(nr, nc);
+                    }
+                }
+            }
+            checkWin();
+        }
+
+        function chordCell(r, c) {
+            if (!board[r][c].isRevealed || board[r][c].neighbor === 0) return;
+            let flagCount = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    let nr = r + dr, nc = c + dc;
+                    if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc].isFlagged) flagCount++;
+                }
+            }
+            if (flagCount === board[r][c].neighbor) {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        let nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && !board[nr][nc].isRevealed && !board[nr][nc].isFlagged) {
+                            revealCell(nr, nc);
+                        }
+                    }
+                }
+            }
+        }
+
+        function toggleFlag(r, c) {
+            if (isGameOver || board[r][c].isRevealed) return;
+            lastFlagTime = Date.now();
+            board[r][c].isFlagged = !board[r][c].isFlagged;
+            flagsCount += board[r][c].isFlagged ? 1 : -1;
+            document.getElementById('mineCount').innerText = MINES - flagsCount;
+            updateCellUI(r, c);
+        }
+
+        function gameOver(isWin) {
+            isGameOver = true;
+            clearInterval(timerInterval);
+            
+            if (!isWin) {
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (board[r][c].isMine) {
+                            board[r][c].isRevealed = true;
+                            updateCellUI(r, c);
+                        }
+                    }
+                }
+                socket.emit('updatePlayerStatus', { roomCode: currentRoomCode, status: 'eliminated', clearTime: null });
+            }
+        }
+
+        function checkWin() {
+            if (revealedCount === (ROWS * COLS) - MINES) {
+                gameOver(true);
+                alert(`🎉 승리하셨습니다! 소요시간: ${timeElapsed}초`);
+                socket.emit('updatePlayerStatus', { roomCode: currentRoomCode, status: 'cleared', clearTime: timeElapsed });
+            }
+        }
+    </script>
+</body>
+</html>
