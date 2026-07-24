@@ -111,7 +111,7 @@
     <!-- 메인 콘텐츠 -->
     <div class="content-body">
         <div class="left-ranking-panel">
-            <h2>🏆 실시간 클리어 랭킹</h2>
+            <h2>🏆 실시간 랭킹</h2>
             <div class="room-badge" id="room-badge-text">연동된 방 없음 (⚙️ 설정에서 입력)</div>
             <div class="ranking-list" id="command-ranking-list">
                 <div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">대회 방에 연결되면<br>실시간 순위가 나타납니다.</div>
@@ -200,7 +200,7 @@
                 });
                 socket.on('roomJoined', (roomCode) => {
                     currentConnectedRoom = roomCode;
-                    document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중 [방: ${roomCode}]`;
+                    document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중`;
                 });
                 socket.on('updateRanking', (players) => {
     const listEl = document.getElementById('command-ranking-list');
