@@ -193,7 +193,9 @@
 
         try {
             if (typeof io !== 'undefined') {
-                socket = io(); 
+                socket = io({ 
+    transports: ['websocket'] 
+}); 
                 socket.on('roomError', (msg) => {
                     alert("지통실 연동 오류: " + msg);
                     document.getElementById('room-badge-text').innerText = "방 연결 실패!";

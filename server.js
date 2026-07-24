@@ -14,6 +14,7 @@ const io = new Server(server, {
         origin: allowedOrigins, 
         methods: ["GET", "POST"]
     } 
+    transports: ['websocket', 'polling'] // 웹소켓을 최우선으로 처리
 });
 
 const rooms = {};

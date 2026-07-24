@@ -101,7 +101,9 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
+        const socket = io({ 
+    transports: ['websocket'] 
+});
         let currentRoomCode = null;
         let players = [];
         let lastFlagTime = 0;
