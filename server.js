@@ -67,19 +67,30 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 3. 개별 플레이어 상태 및 클리어 타임 업데이트 (핵심 로직)
+   // 3. 개별 플레이어 상태 및 클리어 타임 업데이트 (핵심 로직)
     socket.on('updatePlayerStatus', ({ roomCode, status, clearTime }) => {
         if (!rooms[roomCode]) return;
         const player = rooms[roomCode].find(p => p.id === socket.id);
         
         if (player) {
-            player.status = status;
-            if (status === 'cleared') {
-                player.clearTime = clearTime;
-                player.clearedAt = Date.now();
-            } else if (status === 'playing') {
-                player.clearTime = null;
-                player.clearedAt = null;
+            // 🔥 수정된 부분: 이미 클리어한 상태일 때의 기록 보존 방어 로직 추가
+            if (player.status === 'cleared') {
+                // 이미 클리어한 유저가 다시 클리어했고, 그 기록이 기존 기록보다 더 짧을(빠를) 때만 단축 갱신
+                if (status === 'cleared' && clearTime < player.clearTime) {
+                    player.clearTime = clearTime;
+                    player.clearedAt = Date.now();
+                }
+                // status가 'playing'이나 'eliminated'로 들어오면 무시하여 기존 클리어 기록을 유지합니다.
+            } else {
+                // 아직 클리어한 적이 없다면 정상적으로 상태를 업데이트합니다.
+                player.status = status;
+                if (status === 'cleared') {
+                    player.clearTime = clearTime;
+                    player.clearedAt = Date.now();
+                } else if (status === 'playing') {
+                    player.clearTime = null;
+                    player.clearedAt = null;
+                }
             }
         }
 
