@@ -121,19 +121,28 @@
 
         /* ---------------- 네트워킹 & 방 관리 ---------------- */
         socket.on('roomError', (msg) => { alert(msg); });
-        socket.on('roomCreated', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode); });
-        socket.on('roomJoined', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode); });
+        // 🔥 수정된 부분: 방을 만든 사람(방장)과 입장한 사람을 구분하여 isHost 값을 넘겨줌
+        socket.on('roomCreated', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode, true); });
+        socket.on('roomJoined', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode, false); });
 
         socket.on('updateRanking', (serverPlayers) => {
             players = serverPlayers.map(p => ({ ...p, isMe: p.id === socket.id }));
             renderRanking();
         });
 
-        function switchToRoomUI(roomCode) {
+        function switchToRoomUI(roomCode, isHost) {
             document.getElementById('lobbyUI').style.display = 'none';
             document.getElementById('inRoomUI').style.display = 'block';
             document.getElementById('roomStatus').style.display = 'block';
-            document.getElementById('roomStatus').innerText = `입장 완료! 게임 시작을 눌러주세요.`;
+            
+            if (isHost) {
+                // 방장(방을 만든 사람) 화면
+                document.getElementById('roomStatus').innerHTML = `👑 <b>방 생성 완료!</b><br>[방 코드: <span style="color:#ff5252;">${roomCode}</span>]<br>코드를 공유해주세요.`;
+            } else {
+                // 일반 플레이어(코드를 치고 입장한 사람) 화면
+                document.getElementById('roomStatus').innerHTML = `✅ <b>입장 완료!</b><br>아래 버튼을 눌러 게임을 시작하세요.`;
+            }
+            
             initEmptyBoard();
         }
 
