@@ -203,44 +203,50 @@
                     document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중 [방: ${roomCode}]`;
                 });
                 socket.on('updateRanking', (players) => {
-                    const listEl = document.getElementById('command-ranking-list');
-                    listEl.innerHTML = '';
-                    const realPlayers = players.filter(p => p.name !== "📺지통실(관전)");
+    const listEl = document.getElementById('command-ranking-list');
+    listEl.innerHTML = '';
+    const realPlayers = players.filter(p => p.name !== "📺지통실(관전)");
 
-                    if (realPlayers.length === 0) {
-                        listEl.innerHTML = '<div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">방에 대기 중인<br>선수가 없습니다.</div>';
-                        return;
-                    }
+    if (realPlayers.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">방에 대기 중인<br>선수가 없습니다.</div>';
+        return;
+    }
 
-                    realPlayers.forEach((p, idx) => {
-                        let rankStr = idx === 0 ? "🥇 1위" : idx === 1 ? "🥈 2위" : idx === 2 ? "🥉 3위" : `${idx + 1}위`;
-                        let timeOrStatus = "";
-                        if (p.bestTime !== null) {
-                            if (p.status === 'playing') {
-                                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF9800;">(재도전중)</span>`;
-                            } else {
-                                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span>`;
-                            }
-                        } else if (p.status === 'playing') {
-                            timeOrStatus = `<span class="rank-status" style="color:#FF9800;">진행 중</span>`;
-                        } else if (p.status === 'eliminated') {
-                            timeOrStatus = `<span class="rank-status" style="color:#FF5252;">폭발💀</span>`;
-                        } else {
-                            timeOrStatus = `<span class="rank-status">대기</span>`;
-                        }
+    realPlayers.forEach((p, idx) => {
+        let rankStr = idx === 0 ? "🥇 1위" : idx === 1 ? "🥈 2위" : idx === 2 ? "🥉 3위" : `${idx + 1}위`;
+        
+        // ⭐️ 핵심 방어 코드: bestTime이 확실히 '숫자'일 때만 기록 표시
+        const hasValidBestTime = typeof p.bestTime === 'number';
+        let timeOrStatus = "";
 
-                        let cardHTML = `
-                            <div class="rank-card ${p.bestTime !== null ? 'is-cleared' : ''}">
-                                <div>
-                                    <span style="color:#B388FF; font-size:11px; margin-right:4px;">${rankStr}</span>
-                                    <span class="rank-name">${p.name}</span>
-                                </div>
-                                <div>${timeOrStatus}</div>
-                            </div>
-                        `;
-                        listEl.insertAdjacentHTML('beforeend', cardHTML);
-                    });
-                });
+        if (hasValidBestTime) {
+            if (p.status === 'playing') {
+                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF9800;">(재도전중)</span>`;
+            } else if (p.status === 'eliminated') {
+                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF5252;">(폭발💀)</span>`;
+            } else {
+                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#00E676;">(클리어🎉)</span>`;
+            }
+        } else if (p.status === 'playing') {
+            timeOrStatus = `<span class="rank-status" style="color:#FF9800;">진행 중</span>`;
+        } else if (p.status === 'eliminated') {
+            timeOrStatus = `<span class="rank-status" style="color:#FF5252;">폭발💀</span>`;
+        } else {
+            timeOrStatus = `<span class="rank-status">대기</span>`;
+        }
+
+        let cardHTML = `
+            <div class="rank-card ${hasValidBestTime ? 'is-cleared' : ''}">
+                <div>
+                    <span style="color:#B388FF; font-size:11px; margin-right:4px;">${rankStr}</span>
+                    <span class="rank-name">${p.name}</span>
+                </div>
+                <div>${timeOrStatus}</div>
+            </div>
+        `;
+        listEl.insertAdjacentHTML('beforeend', cardHTML);
+    });
+});
             }
         } catch(e) { console.warn("소켓 초기화 예외:", e); }
 

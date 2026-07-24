@@ -235,34 +235,43 @@
         }
 
         function renderRanking() {
-            const rankingListEl = document.getElementById('rankingList');
-            rankingListEl.innerHTML = '';
+    const rankingListEl = document.getElementById('rankingList');
+    rankingListEl.innerHTML = '';
 
-            players.forEach((p, index) => {
-                let rankText = index === 0 ? '🥇 1위' : index === 1 ? '🥈 2위' : index === 2 ? '🥉 3위' : `${index + 1}위`;
-                const nameStyle = p.isMe ? 'color: #0288d1; font-weight: bold;' : 'color: #333;';
-                
-                let statusText = '';
-                if (p.status === 'cleared') {
-                    statusText = `<span style="color:#1e88e5; font-weight:bold;">${p.clearTime}초 클리어🎉</span>`;
-                } else if (p.status === 'playing') {
-                    statusText = `<span style="color:#f57c00;">게임 진행 중...</span>`;
-                } else if (p.status === 'eliminated') {
-                    statusText = `<span style="color:#e53935;">[지뢰 폭발💀]</span>`;
-                } else {
-                    statusText = `<span style="color:#757575;">대기 중</span>`;
-                }
+    players.forEach((p, index) => {
+        let rankText = index === 0 ? '🥇 1위' : index === 1 ? '🥈 2위' : index === 2 ? '🥉 3위' : `${index + 1}위`;
+        const nameStyle = p.isMe ? 'color: #0288d1; font-weight: bold;' : 'color: #333;';
+        
+        const hasValidBestTime = typeof p.bestTime === 'number';
+        let statusText = '';
 
-                const itemHTML = `
-                <div class="rank-item">
-                    <div class="rank-info">
-                        <div>${rankText} : <span style="${nameStyle}">${p.name}</span></div>
-                        <div>${statusText}</div>
-                    </div>
-                </div>`;
-                rankingListEl.insertAdjacentHTML('beforeend', itemHTML);
-            });
+        // ⭐️ 선수 화면에서도 내 최고 기록(bestTime)을 영구적으로 유지하여 표시
+        if (hasValidBestTime) {
+            if (p.status === 'playing') {
+                statusText = `<span style="color:#1e88e5; font-weight:bold;">${p.bestTime}초</span> <span style="color:#f57c00; font-size:12px;">(재도전중)</span>`;
+            } else if (p.status === 'eliminated') {
+                statusText = `<span style="color:#1e88e5; font-weight:bold;">${p.bestTime}초</span> <span style="color:#e53935; font-size:12px;">(폭발💀)</span>`;
+            } else {
+                statusText = `<span style="color:#1e88e5; font-weight:bold;">${p.bestTime}초 클리어🎉</span>`;
+            }
+        } else if (p.status === 'playing') {
+            statusText = `<span style="color:#f57c00;">게임 진행 중...</span>`;
+        } else if (p.status === 'eliminated') {
+            statusText = `<span style="color:#e53935;">[지뢰 폭발💀]</span>`;
+        } else {
+            statusText = `<span style="color:#757575;">대기 중</span>`;
         }
+
+        const itemHTML = `
+        <div class="rank-item">
+            <div class="rank-info">
+                <div>${rankText} : <span style="${nameStyle}">${p.name}</span></div>
+                <div>${statusText}</div>
+            </div>
+        </div>`;
+        rankingListEl.insertAdjacentHTML('beforeend', itemHTML);
+    });
+}
 
         /* ---------------- 보드 이벤트 및 게임 진행 ---------------- */
         function renderBoard() {

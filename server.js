@@ -21,7 +21,6 @@ const rooms = {};
 io.on('connection', (socket) => {
     console.log(`유저 접속됨: ${socket.id}`);
 
-    // 1-1. 새로운 방 생성
     socket.on('createRoom', ({ nickname }) => {
         let roomCode;
         do {
@@ -33,7 +32,6 @@ io.on('connection', (socket) => {
         socket.emit('roomCreated', roomCode);
     });
 
-    // 1-2. 방 입장하기 (지통실 관전 입장도 동일하게 사용)
     socket.on('joinRoom', ({ roomCode, nickname }) => {
         if (!rooms[roomCode]) {
             socket.emit('roomError', '존재하지 않는 방입니다. 코드를 확인해주세요!');
@@ -48,16 +46,15 @@ io.on('connection', (socket) => {
         const player = { 
             id: socket.id, 
             name: nickname, 
-            status: 'waiting',  // waiting, playing, cleared, eliminated
-            clearTime: null,    // 클리어 소요 시간(초)
-            clearedAt: null,    // 클리어 달성 시각 (동점자 처리용)
+            status: 'waiting',  // 실시간 상태 (waiting, playing, cleared, eliminated)
+            bestTime: null,     // ⭐️ 핵심: 재도전해도 절대 지워지지 않는 최고 기록
+            clearedAt: null,    // 동점자 판별용 달성 시각
             isHost: isHost
         };
         rooms[roomCode].push(player);
         io.to(roomCode).emit('updateRanking', rooms[roomCode]);
     }
 
-    // 2. 닉네임 실시간 변경
     socket.on('changeNickname', ({ roomCode, newNickname }) => {
         if (!rooms[roomCode]) return;
         const player = rooms[roomCode].find(p => p.id === socket.id);
@@ -67,51 +64,45 @@ io.on('connection', (socket) => {
         }
     });
 
-   // 3. 개별 플레이어 상태 및 클리어 타임 업데이트 (핵심 로직)
+    // ⭐️ 스마트 상태 업데이트 및 최고 기록 보호 로직
     socket.on('updatePlayerStatus', ({ roomCode, status, clearTime }) => {
         if (!rooms[roomCode]) return;
         const player = rooms[roomCode].find(p => p.id === socket.id);
         
         if (player) {
-            // 🔥 수정된 부분: 이미 클리어한 상태일 때의 기록 보존 방어 로직 추가
-            if (player.status === 'cleared') {
-                // 이미 클리어한 유저가 다시 클리어했고, 그 기록이 기존 기록보다 더 짧을(빠를) 때만 단축 갱신
-                if (status === 'cleared' && clearTime < player.clearTime) {
-                    player.clearTime = clearTime;
+            // 선수의 현재 실시간 상태(재도전, 폭발 등)는 항상 반영
+            player.status = status;
+
+            // 게임 클리어 시, 기록이 숫자인지 엄격히 검증
+            if (status === 'cleared' && typeof clearTime === 'number') {
+                // 첫 클리어이거나, 기존 최고 기록보다 더 빠를 때만 bestTime 단축 갱신!
+                if (player.bestTime === null || clearTime < player.bestTime) {
+                    player.bestTime = clearTime;
                     player.clearedAt = Date.now();
-                }
-                // status가 'playing'이나 'eliminated'로 들어오면 무시하여 기존 클리어 기록을 유지합니다.
-            } else {
-                // 아직 클리어한 적이 없다면 정상적으로 상태를 업데이트합니다.
-                player.status = status;
-                if (status === 'cleared') {
-                    player.clearTime = clearTime;
-                    player.clearedAt = Date.now();
-                } else if (status === 'playing') {
-                    player.clearTime = null;
-                    player.clearedAt = null;
                 }
             }
         }
 
-        // 🔥 랭킹 정렬 로직: 클리어한 사람이 무조건 상위, 시간 짧은 순 > 먼저 깬 순
+        // ⭐️ 정렬 기준: 최고 기록(bestTime) 보유자 우선 > 시간 짧은 순 > 먼저 깬 순
         rooms[roomCode].sort((a, b) => {
-            if (a.status === 'cleared' && b.status !== 'cleared') return -1;
-            if (a.status !== 'cleared' && b.status === 'cleared') return 1;
+            const hasA = typeof a.bestTime === 'number';
+            const hasB = typeof b.bestTime === 'number';
             
-            if (a.status === 'cleared' && b.status === 'cleared') {
-                if (a.clearTime !== b.clearTime) {
-                    return a.clearTime - b.clearTime; // 시간 짧은 순 (오름차순)
+            if (hasA && !hasB) return -1; // 기록 있는 선수가 상위
+            if (!hasA && hasB) return 1;
+            
+            if (hasA && hasB) {
+                if (a.bestTime !== b.bestTime) {
+                    return a.bestTime - b.bestTime; // 시간 짧은 순 (오름차순)
                 }
-                return a.clearedAt - b.clearedAt;     // 시간 같으면 먼저 클리어한 순
+                return a.clearedAt - b.clearedAt;   // 시간 같으면 먼저 클리어한 순
             }
-            return 0; // 클리어 못한 사람들 간의 순서는 유지
+            return 0; // 기록 없는 선수들 간의 순서는 유지
         });
 
         io.to(roomCode).emit('updateRanking', rooms[roomCode]);
     });
 
-    // 4. 연결 끊김 처리
     socket.on('disconnect', () => {
         for (const roomCode in rooms) {
             const index = rooms[roomCode].findIndex(p => p.id === socket.id);
