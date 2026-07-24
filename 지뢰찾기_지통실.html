@@ -104,7 +104,7 @@
                     <button onclick="resetTimer()" title="리셋">🔄</button>
                 </div>
             </div>
-            <button id="btn-load-streams" onclick="loadInitialStreams()">📺 방송 시작 (최대4개 제어)</button>
+            <button id="btn-load-streams" onclick="loadInitialStreams()">📺 방송 시작</button>
         </div>
     </div>
 
@@ -193,9 +193,7 @@
 
         try {
             if (typeof io !== 'undefined') {
-                socket = io({ 
-    transports: ['websocket'] 
-}); 
+                socket = io({ transports: ['websocket'] }); 
                 socket.on('roomError', (msg) => {
                     alert("지통실 연동 오류: " + msg);
                     document.getElementById('room-badge-text').innerText = "방 연결 실패!";
@@ -205,54 +203,53 @@
                     document.getElementById('room-badge-text').innerText = `🔴 실시간 연동 중`;
                 });
                 socket.on('updateRanking', (players) => {
-    const listEl = document.getElementById('command-ranking-list');
-    listEl.innerHTML = '';
-    const realPlayers = players.filter(p => p.name !== "📺지통실(관전)");
+                    const listEl = document.getElementById('command-ranking-list');
+                    listEl.innerHTML = '';
+                    const realPlayers = players.filter(p => p.name !== "📺지통실(관전)");
 
-    if (realPlayers.length === 0) {
-        listEl.innerHTML = '<div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">방에 대기 중인<br>선수가 없습니다.</div>';
-        return;
-    }
+                    if (realPlayers.length === 0) {
+                        listEl.innerHTML = '<div style="text-align:center; color:#777; margin-top:20px; font-size:12px;">방에 대기 중인<br>선수가 없습니다.</div>';
+                        return;
+                    }
 
-    realPlayers.forEach((p, idx) => {
-        let rankStr = idx === 0 ? "🥇 1위" : idx === 1 ? "🥈 2위" : idx === 2 ? "🥉 3위" : `${idx + 1}위`;
-        
-        // ⭐️ 핵심 방어 코드: bestTime이 확실히 '숫자'일 때만 기록 표시
-        const hasValidBestTime = typeof p.bestTime === 'number';
-        let timeOrStatus = "";
+                    realPlayers.forEach((p, idx) => {
+                        let rankStr = idx === 0 ? "🥇 1위" : idx === 1 ? "🥈 2위" : idx === 2 ? "🥉 3위" : `${idx + 1}위`;
+                        
+                        const hasValidBestTime = typeof p.bestTime === 'number';
+                        let timeOrStatus = "";
 
-        if (hasValidBestTime) {
-            if (p.status === 'playing') {
-                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF9800;">(재도전중)</span>`;
-            } else if (p.status === 'eliminated') {
-                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF5252;">(폭발💀)</span>`;
-            } else {
-                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#00E676;">(클리어🎉)</span>`;
-            }
-        } else if (p.status === 'playing') {
-            timeOrStatus = `<span class="rank-status" style="color:#FF9800;">진행 중</span>`;
-        } else if (p.status === 'eliminated') {
-            timeOrStatus = `<span class="rank-status" style="color:#FF5252;">폭발💀</span>`;
-        } else {
-            timeOrStatus = `<span class="rank-status">대기</span>`;
-        }
+                        if (hasValidBestTime) {
+                            if (p.status === 'playing') {
+                                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF9800;">(재도전중)</span>`;
+                            } else if (p.status === 'eliminated') {
+                                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#FF5252;">(폭발💀)</span>`;
+                            } else {
+                                timeOrStatus = `<span class="rank-time">${p.bestTime}초</span> <span style="font-size:10px; color:#00E676;">(클리어🎉)</span>`;
+                            }
+                        } else if (p.status === 'playing') {
+                            timeOrStatus = `<span class="rank-status" style="color:#FF9800;">진행 중</span>`;
+                        } else if (p.status === 'eliminated') {
+                            timeOrStatus = `<span class="rank-status" style="color:#FF5252;">폭발💀</span>`;
+                        } else {
+                            timeOrStatus = `<span class="rank-status">대기</span>`;
+                        }
 
-        let cardHTML = `
-            <div class="rank-card ${hasValidBestTime ? 'is-cleared' : ''}">
-                <div>
-                    <span style="color:#B388FF; font-size:11px; margin-right:4px;">${rankStr}</span>
-                    <span class="rank-name">${p.name}</span>
-                </div>
-                <div>${timeOrStatus}</div>
-            </div>
-        `;
-        listEl.insertAdjacentHTML('beforeend', cardHTML);
-    });
-});
+                        let cardHTML = `
+                            <div class="rank-card ${hasValidBestTime ? 'is-cleared' : ''}">
+                                <div>
+                                    <span style="color:#B388FF; font-size:11px; margin-right:4px;">${rankStr}</span>
+                                    <span class="rank-name">${p.name}</span>
+                                </div>
+                                <div>${timeOrStatus}</div>
+                            </div>
+                        `;
+                        listEl.insertAdjacentHTML('beforeend', cardHTML);
+                    });
+                });
             }
         } catch(e) { console.warn("소켓 초기화 예외:", e); }
 
-        /* --- 🔥 SOOP 4개 동시 시청 제한 대응: 스마트 로테이션 시스템 --- */
+        /* --- 🔥 SOOP 단일(1개) 시청 버퍼링 대응 로직 --- */
         let teams = [
             { id: 1, name: "", streamId: "" }, 
             { id: 2, name: "", streamId: "" },
@@ -263,32 +260,22 @@
             { id: 7, name: "", streamId: "" }
         ];
 
-        let activeStreamBoxes = []; // 현재 켜져 있는 박스 ID 목록 (최대 4개 유지)
+        let activeStreamBoxes = []; // 현재 켜져 있는 박스 ID 목록
 
         function loadInitialStreams() {
-            // 처음에 1, 2, 3, 4팀(총 4개) 화면만 먼저 켭니다.
-            ['box-1', 'box-2', 'box-3', 'box-4'].forEach(boxId => activateStream(boxId));
+            // 처음에 1팀 화면 1개만 먼저 켭니다.
+            activateStream('box-1');
             document.getElementById('btn-load-streams').style.display = 'none';
         }
 
         function activateStream(targetBoxId) {
             if (activeStreamBoxes.includes(targetBoxId)) return; // 이미 켜져 있으면 무시
 
+            // ⭐️ 핵심: 리소스 최적화를 위해 새로운 화면을 켜기 전, 기존에 켜져있던 모든 화면을 완전히 끕니다.
+            [...activeStreamBoxes].forEach(boxId => deactivateStream(boxId));
+
             const targetBox = document.getElementById(targetBoxId);
             const iframe = targetBox.querySelector('iframe');
-
-            // ⭐️ 핵심: 이미 4개가 켜져 있다면, 현재 메인 화면을 제외한 '가장 오래된 서브 화면 1개'를 끕니다.
-            if (activeStreamBoxes.length >= 4) {
-                const currentMainBox = document.querySelector('.view-box.is-main');
-                const mainBoxId = currentMainBox ? currentMainBox.id : null;
-
-                // 켜진 목록 중 현재 메인이 아닌 가장 먼저 켜졌던 화면을 찾음
-                const boxToTurnOff = activeStreamBoxes.find(id => id !== mainBoxId && id !== targetBoxId);
-                
-                if (boxToTurnOff) {
-                    deactivateStream(boxToTurnOff);
-                }
-            }
 
             // 선택한 화면 켜기
             iframe.src = iframe.getAttribute('data-src') + "?mute=1&autoplay=true";
@@ -299,13 +286,13 @@
         function deactivateStream(boxId) {
             const box = document.getElementById(boxId);
             const iframe = box.querySelector('iframe');
-            iframe.src = ""; // 스트림 통신 완전 차단 (SOOP 4개 제한 해제)
+            iframe.src = ""; // 스트림 통신 완전 차단
             box.classList.remove('is-active');
             activeStreamBoxes = activeStreamBoxes.filter(id => id !== boxId);
         }
 
         function makeMain(targetBoxId) {
-            // 메인으로 전환하려는 화면이 만약 꺼져 있다면 먼저 켭니다 (자동으로 서브 1개가 꺼짐)
+            // 메인으로 전환하려는 화면을 켭니다 (1개 제한이므로 기존 화면은 자동 종료됨)
             activateStream(targetBoxId);
 
             let currentMain = document.querySelector('.view-box.is-main');
