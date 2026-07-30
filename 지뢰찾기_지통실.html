@@ -58,10 +58,6 @@
         .team-label { position: absolute; top: 4px; left: 4px; background: rgba(0, 0, 0, 0.75); color: #FFD700; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; z-index: 10; pointer-events: none; border: 1px solid var(--point-color); }
         .view-box.is-main .team-label { font-size: 16px; padding: 6px 12px; top: 10px; left: 10px; }
 
-        /* 메인화면 송출중 배지 */
-        .main-broadcasting-label { position: absolute; top: 10px; right: 10px; background: rgba(220, 20, 60, 0.9); color: white; padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; z-index: 10; border: 1px solid #FF99AA; display: none; pointer-events: none; }
-        .view-box.is-main .main-broadcasting-label { display: block; animation: pulse 2s infinite; }
-
         /* 🔥 오프라인(송출 대기) 오버레이 스타일 */
         .offline-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 5, 25, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; color: #aaa; font-size: 13px; gap: 8px; border: 1px dashed #5A189A; box-sizing: border-box; }
         .offline-overlay span { font-weight: bold; color: #FF9800; font-size: 14px; }
@@ -128,52 +124,44 @@
 
         <div class="video-area">
             <div class="video-container">
-                <!-- 8팀 추가 구조 반영, 메인화면 배지 추가 -->
                 <div class="view-box is-main" id="box-1">
                     <div class="team-label">[1팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-1')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/congna/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-1')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-2">
                     <div class="team-label">[2팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-2')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/jing5869/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-2')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-3">
                     <div class="team-label">[3팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-3')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/hongseol/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-3')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-4">
                     <div class="team-label">[4팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-4')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/jjuppi1022/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-4')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-5">
                     <div class="team-label">[5팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-5')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/aranyaang/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-5')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-6">
                     <div class="team-label">[6팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-6')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/spkimnao/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-6')">🔄 메인으로</button></div>
                 </div>
                 <div class="view-box is-sub" id="box-7">
                     <div class="team-label">[7팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-7')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/kuang2/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-7')">🔄 메인으로</button></div>
@@ -181,7 +169,6 @@
                 <!-- 8팀 추가 -->
                 <div class="view-box is-sub" id="box-8">
                     <div class="team-label">[8팀] </div>
-                    <div class="main-broadcasting-label">🔴 메인화면 송출중</div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-8')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/soop/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-8')">🔄 메인으로</button></div>
