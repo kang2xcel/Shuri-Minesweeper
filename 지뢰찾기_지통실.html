@@ -281,21 +281,30 @@
             document.getElementById('btn-load-streams').style.display = 'none';
         }
 
-        // 아이프레임 켜기 함수
         function turnOnIframe(boxId) {
             const box = document.getElementById(boxId);
             if (!box) return;
-            const iframe = box.querySelector('iframe');
-            iframe.src = iframe.getAttribute('data-src') + "?mute=1&autoplay=true";
+            let oldIframe = box.querySelector('iframe');
+            const dataSrc = oldIframe.getAttribute('data-src');
+            oldIframe.remove();
+            const newIframe = document.createElement('iframe');
+            newIframe.setAttribute('data-src', dataSrc);
+            newIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
+            newIframe.src = dataSrc + "?mute=1&autoplay=true";
+            box.insertBefore(newIframe, box.querySelector('.swap-area'));
             box.classList.add('is-active');
         }
 
-        // 아이프레임 끄기 함수
         function turnOffIframe(boxId) {
             const box = document.getElementById(boxId);
             if (!box) return;
-            const iframe = box.querySelector('iframe');
-            iframe.src = ""; // 스트림 통신 완전 차단
+            let oldIframe = box.querySelector('iframe');
+            const dataSrc = oldIframe.getAttribute('data-src');
+            oldIframe.remove();
+            const blankIframe = document.createElement('iframe');
+            blankIframe.setAttribute('data-src', dataSrc);
+            blankIframe.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
+            box.insertBefore(blankIframe, box.querySelector('.swap-area'));
             box.classList.remove('is-active');
         }
 
