@@ -43,16 +43,21 @@
         .rank-time { font-weight: bold; color: #FFD700; }
         .rank-status { font-size: 11px; color: #ccc; }
 
+        /* 비디오 영역 8팀 기준으로 레이아웃 수정 */
         .video-area { flex: 1; display: flex; padding: 12px; box-sizing: border-box; overflow: hidden; }
-        .video-container { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; height: 100%; align-content: space-between; justify-content: space-between; }
+        .video-container { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; height: 100%; align-content: flex-start; justify-content: flex-start; }
         
         .view-box { position: relative; background-color: #111; border-radius: 6px; overflow: hidden; transition: all 0.2s ease; border: 1px solid #444; box-sizing: border-box; }
         iframe { width: 100%; height: 100%; border: none; display: block; }
-        .view-box.is-main { order: -1; width: 100%; height: 62%; border: 2px solid var(--point-color); box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); }
-        .view-box.is-sub { order: 1; width: calc((100% - 16px) / 3); height: calc((100% - 62% - 16px) / 2); }
+        
+        /* 메인은 위쪽에 크게 배치 */
+        .view-box.is-main { order: -1; width: 100%; height: 62%; border: 2px solid var(--point-color); box-shadow: 0 0 15px rgba(138, 43, 226, 0.4); margin-bottom: 0; }
+        /* 서브는 하단에 8개(메인 제외 7개) 배치. 4개씩 2줄 */
+        .view-box.is-sub { order: 1; width: calc((100% - 24px) / 4); height: calc((100% - 62% - 16px) / 2); }
 
         .team-label { position: absolute; top: 4px; left: 4px; background: rgba(0, 0, 0, 0.75); color: #FFD700; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; z-index: 10; pointer-events: none; border: 1px solid var(--point-color); }
         .view-box.is-main .team-label { font-size: 16px; padding: 6px 12px; top: 10px; left: 10px; }
+
 
         /* 🔥 오프라인(송출 대기) 오버레이 스타일 */
         .offline-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 5, 25, 0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; color: #aaa; font-size: 13px; gap: 8px; border: 1px dashed #5A189A; box-sizing: border-box; }
@@ -120,6 +125,7 @@
 
         <div class="video-area">
             <div class="video-container">
+                <!-- 8팀 추가 구조 반영, 메인화면 배지 추가 -->
                 <div class="view-box is-main" id="box-1">
                     <div class="team-label">[1팀] </div>
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-1')">▶️ 이 화면 켜기</button></div>
@@ -161,6 +167,13 @@
                     <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-7')">▶️ 이 화면 켜기</button></div>
                     <iframe data-src="https://play.sooplive.co.kr/kuang2/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
                     <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-7')">🔄 메인으로</button></div>
+                </div>
+                <!-- 8팀 추가 -->
+                <div class="view-box is-sub" id="box-8">
+                    <div class="team-label">[8팀] </div>
+                    <div class="offline-overlay"><span>⏸️ 송출 대기 중</span><button class="btn-turn-on" onclick="activateStream('box-8')">▶️ 이 화면 켜기</button></div>
+                    <iframe data-src="https://play.sooplive.co.kr/soop/embed" allow="autoplay; fullscreen; encrypted-media"></iframe>
+                    <div class="swap-area"><button class="swap-btn" onclick="makeMain('box-8')">🔄 메인으로</button></div>
                 </div>
             </div>
         </div>
@@ -249,7 +262,7 @@
             }
         } catch(e) { console.warn("소켓 초기화 예외:", e); }
 
-        /* --- 🔥 SOOP 단일(1개) 시청 버퍼링 대응 로직 --- */
+        /* --- 🔥 듀얼(메인+서브) 스트림 송출 로직 --- */
         let teams = [
             { id: 1, name: "", streamId: "" }, 
             { id: 2, name: "", streamId: "" },
@@ -257,52 +270,79 @@
             { id: 4, name: "", streamId: "" },
             { id: 5, name: "", streamId: "" }, 
             { id: 6, name: "", streamId: "" },
-            { id: 7, name: "", streamId: "" }
+            { id: 7, name: "", streamId: "" },
+            { id: 8, name: "", streamId: "" } // 8팀 추가됨
         ];
 
-        let activeStreamBoxes = []; // 현재 켜져 있는 박스 ID 목록
+        let activeMainBox = 'box-1'; // 현재 메인 방송
+        let activeSubBox = null;     // 현재 서브 방송
 
         function loadInitialStreams() {
-            // 처음에 1팀 화면 1개만 먼저 켭니다.
-            activateStream('box-1');
+            // 처음에 1팀 화면(메인)만 먼저 켭니다.
+            turnOnIframe('box-1');
             document.getElementById('btn-load-streams').style.display = 'none';
         }
 
-        function activateStream(targetBoxId) {
-            if (activeStreamBoxes.includes(targetBoxId)) return; // 이미 켜져 있으면 무시
-
-            // ⭐️ 핵심: 리소스 최적화를 위해 새로운 화면을 켜기 전, 기존에 켜져있던 모든 화면을 완전히 끕니다.
-            [...activeStreamBoxes].forEach(boxId => deactivateStream(boxId));
-
-            const targetBox = document.getElementById(targetBoxId);
-            const iframe = targetBox.querySelector('iframe');
-
-            // 선택한 화면 켜기
+        // 아이프레임 켜기 함수
+        function turnOnIframe(boxId) {
+            const box = document.getElementById(boxId);
+            if (!box) return;
+            const iframe = box.querySelector('iframe');
             iframe.src = iframe.getAttribute('data-src') + "?mute=1&autoplay=true";
-            targetBox.classList.add('is-active');
-            activeStreamBoxes.push(targetBoxId);
+            box.classList.add('is-active');
         }
 
-        function deactivateStream(boxId) {
+        // 아이프레임 끄기 함수
+        function turnOffIframe(boxId) {
             const box = document.getElementById(boxId);
+            if (!box) return;
             const iframe = box.querySelector('iframe');
             iframe.src = ""; // 스트림 통신 완전 차단
             box.classList.remove('is-active');
-            activeStreamBoxes = activeStreamBoxes.filter(id => id !== boxId);
         }
 
-        function makeMain(targetBoxId) {
-            // 메인으로 전환하려는 화면을 켭니다 (1개 제한이므로 기존 화면은 자동 종료됨)
-            activateStream(targetBoxId);
+        // "▶️ 이 화면 켜기" 버튼 클릭 시 (서브 방송 변경)
+        function activateStream(targetBoxId) {
+            // 클릭한 대상이 이미 메인이거나 서브로 켜져 있다면 무시
+            if (targetBoxId === activeMainBox || targetBoxId === activeSubBox) return;
 
-            let currentMain = document.querySelector('.view-box.is-main');
-            if (currentMain) {
-                currentMain.classList.remove('is-main');
-                currentMain.classList.add('is-sub');
+            // 이미 켜진 서브 방송이 있다면 먼저 끈다 (메인은 건드리지 않음)
+            if (activeSubBox) {
+                turnOffIframe(activeSubBox);
             }
-            let newMain = document.getElementById(targetBoxId);
-            newMain.classList.remove('is-sub');
-            newMain.classList.add('is-main');
+
+            // 새로 선택한 화면을 서브 방송으로 켠다
+            turnOnIframe(targetBoxId);
+            activeSubBox = targetBoxId;
+        }
+
+        // "🔄 메인으로" 버튼 클릭 시 (메인/서브 스왑 또는 교체)
+        function makeMain(targetBoxId) {
+            // 이미 메인이면 무시
+            if (targetBoxId === activeMainBox) return;
+
+            const oldMain = activeMainBox;
+
+            if (targetBoxId === activeSubBox) {
+                // 서브로 켜져있던 화면을 메인으로 올리는 경우 -> 둘 다 켜진 상태 유지, 역할만 교환
+                activeMainBox = targetBoxId;
+                activeSubBox = oldMain;
+            } else {
+                // 꺼져있던 화면을 메인으로 올리는 경우
+                if (activeSubBox) {
+                    turnOffIframe(activeSubBox); // 기존 서브는 끄기
+                }
+                activeMainBox = targetBoxId; // 새로운 메인 지정
+                turnOnIframe(activeMainBox); // 새로운 메인 켜기
+                activeSubBox = oldMain;      // 기존 메인은 서브로 강등 (계속 켜져있음)
+            }
+
+            // UI 클래스 변경 처리
+            document.getElementById(oldMain).classList.remove('is-main');
+            document.getElementById(oldMain).classList.add('is-sub');
+            
+            document.getElementById(activeMainBox).classList.remove('is-sub');
+            document.getElementById(activeMainBox).classList.add('is-main');
         }
 
         /* --- 설정 창 로직 --- */
@@ -342,7 +382,9 @@
                 if(iframe) {
                     let newBaseUrl = `https://play.sooplive.co.kr/${newStreamId}/embed`;
                     iframe.setAttribute('data-src', newBaseUrl);
-                    if(activeStreamBoxes.includes(`box-${team.id}`)) {
+                    
+                    // 현재 켜져있는 화면(메인 또는 서브)이면 주소 업데이트 후 다시 로드
+                    if(`box-${team.id}` === activeMainBox || `box-${team.id}` === activeSubBox) {
                         iframe.src = newBaseUrl + "?mute=1&autoplay=true";
                     }
                 }
