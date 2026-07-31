@@ -20,6 +20,10 @@ const io = new Server(server, {
 const rooms = {};
 
 io.on('connection', (socket) => {
+
+	socket.on('changeDifficulty', (data) => {
+            socket.broadcast.to(data.roomCode).emit('difficultyChanged', data);
+        });
     console.log(`유저 접속됨: ${socket.id}`);
 
     socket.on('createRoom', ({ nickname }) => {

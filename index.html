@@ -59,7 +59,6 @@
                 <div id="lobbyUI">
                     <div class="input-group">
                         <label>닉네임</label>
-                        <!-- 기본 플레이어 이름 표시 (방장은 클릭시 적용) -->
                         <input type="text" id="nicknameInput" placeholder="예: 유저1">
                     </div>
                     <button onclick="createRoom()">새로운 방 만들기</button>
@@ -80,7 +79,6 @@
                     
                     <hr style="border: 0; border-top: 1px solid #e1f5fe; margin: 15px 0;">
                     
-                    <!-- 방장에게만 보이는 설정 영역 -->
                     <div id="hostSettings" style="display: none; background: #e1f5fe; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 13px; text-align: left; border: 1px solid #81d4fa;">
                         <span style="display:block; color:#0288d1; text-align:center; margin-bottom:10px; font-weight:bold;">👑 방장 전용 난이도 설정 👑</span>
                         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; margin-bottom: 10px;">
@@ -118,9 +116,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io({ 
-            transports: ['websocket'] 
-        });
+        const socket = io({ transports: ['websocket'] });
         
         let currentRoomCode = null;
         let players = [];
@@ -129,7 +125,6 @@
         let globalLastTapTime = 0;
         let globalLastTapCell = null;
 
-        // 동적으로 변경되도록 let으로 수정
         let ROWS = 16; let COLS = 16; let MINES = 40;
         
         let board = [];
@@ -137,7 +132,6 @@
         let isGameOver = true;
         let isFirstClick = true; 
         
-        // ⭐️ 소수점 시간 측정을 위한 변수 추가
         let timerInterval; 
         let timeElapsed = 0;
         let exactStartTime = 0; 
@@ -180,13 +174,21 @@
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'flag') { // ⭐️ 깃발 꽂는 소리 추가
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
             }
         }
 
         let lastOpenSoundTime = 0;
         function playOpenSound() {
             const now = Date.now();
-            if (now - lastOpenSoundTime > 50) { // 동시다발적인 소리를 방지하기 위한 스로틀링
+            if (now - lastOpenSoundTime > 50) { 
                 playSound('open');
                 lastOpenSoundTime = now;
             }
@@ -197,6 +199,19 @@
         
         socket.on('roomCreated', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode, true); });
         socket.on('roomJoined', (roomCode) => { currentRoomCode = roomCode; switchToRoomUI(roomCode, false); });
+
+        // ⭐️ 방장이 서버에 난이도 변경을 알리면 일반 플레이어들이 수신하는 이벤트
+        socket.on('difficultyChanged', (data) => {
+            ROWS = data.rows;
+            COLS = data.cols;
+            MINES = data.mines;
+            
+            // 일반 플레이어에게만 알림을 표시
+            if (document.getElementById('hostSettings').style.display === 'none') {
+                alert(`방장이 난이도를 변경했습니다! (가로:${COLS}, 세로:${ROWS}, 지뢰:${MINES})\n새로운 난이도로 재시작됩니다.`);
+            }
+            startIndividualGame();
+        });
 
         socket.on('updateRanking', (serverPlayers) => {
             players = serverPlayers.map(p => ({ ...p, isMe: p.id === socket.id }));
@@ -209,11 +224,9 @@
             document.getElementById('roomStatus').style.display = 'block';
             
             if (isHost) {
-                // 방장 화면 - 방장 설정 모달 활성화
                 document.getElementById('roomStatus').innerHTML = `👑 <b>방 생성 완료!</b><br>[방 코드: <span style="color:#ff5252;">${roomCode}</span>]<br>코드를 공유해주세요.`;
                 document.getElementById('hostSettings').style.display = 'block';
             } else {
-                // 일반 플레이어 화면
                 document.getElementById('roomStatus').innerHTML = `✅ <b>입장 완료!</b><br>아래 버튼을 눌러 게임을 시작하세요.`;
                 document.getElementById('hostSettings').style.display = 'none';
             }
@@ -223,7 +236,6 @@
 
         function createRoom() {
             initAudio();
-            // 방장은 닉네임 미입력시 '방장'으로 설정
             const nickname = document.getElementById('nicknameInput').value || '방장';
             socket.emit('createRoom', { nickname });
         }
@@ -263,7 +275,18 @@
                 ROWS = Math.max(5, Math.min(40, r));
                 MINES = Math.max(1, Math.min((COLS * ROWS) - 1, m));
             }
-            alert("난이도 설정이 적용되었습니다. 새 게임이 시작됩니다.");
+            
+            alert("난이도 설정이 적용되었습니다. 모든 유저의 게임이 다시 시작됩니다.");
+            
+            // ⭐️ 서버를 통해 다른 사람들에게도 난이도 변경을 알림
+            socket.emit('changeDifficulty', { 
+                roomCode: currentRoomCode, 
+                rows: ROWS, 
+                cols: COLS, 
+                mines: MINES 
+            });
+
+            // 방장 본인도 새 게임 시작
             startIndividualGame();
         }
 
@@ -345,9 +368,7 @@
                 let statusText = '';
 
                 if (hasValidBestTime) {
-                    // ⭐️ 랭킹보드 표시 시 소수점 2자리 적용
                     let displayTime = Number(p.bestTime).toFixed(2);
-                    
                     if (p.status === 'playing') {
                         statusText = `<span style="color:#1e88e5; font-weight:bold;">${displayTime}초</span> <span style="color:#f57c00; font-size:12px;">(재도전중)</span>`;
                     } else if (p.status === 'eliminated') {
@@ -405,7 +426,9 @@
                             if (e.button === 0) { 
                                 if (Date.now() - lastFlagTime < 100) return;
                                 cellEl.style.border = ""; revealCell(r, c); 
-                            } else if (e.button === 2) { toggleFlag(r, c); }
+                            } else if (e.button === 2) { 
+                                toggleFlag(r, c); 
+                            }
                         }
                     });
 
@@ -508,7 +531,6 @@
             revealedCount++;
             updateCellUI(r, c);
 
-            // ⭐️ 효과음 처리
             if (board[r][c].isMine) {
                 playSound('mine');
                 gameOver(false);
@@ -556,6 +578,9 @@
             flagsCount += board[r][c].isFlagged ? 1 : -1;
             document.getElementById('mineCount').innerText = MINES - flagsCount;
             updateCellUI(r, c);
+            
+            // ⭐️ 깃발 꽂기 효과음 실행
+            playSound('flag'); 
         }
 
         function gameOver(isWin) {
@@ -577,7 +602,6 @@
 
         function checkWin() {
             if (revealedCount === (ROWS * COLS) - MINES) {
-                // ⭐️ 게임 클리어 시 소수점 단위 시간 측정 및 전송
                 let exactClearTime = (Date.now() - exactStartTime) / 1000;
                 gameOver(true);
                 alert(`🎉 승리하셨습니다! 소요시간: ${exactClearTime.toFixed(2)}초`);
